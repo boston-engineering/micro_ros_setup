@@ -24,7 +24,7 @@ pushd $FW_TARGETDIR >/dev/null
     west init zephyrproject
     pushd zephyrproject >/dev/null
         cd zephyr
-          git checkout zephyr-v2.6.0
+          git checkout zephyr-v3.1.0
         cd ..
         west update
     popd >/dev/null
