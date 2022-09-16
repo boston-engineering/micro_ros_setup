@@ -17,7 +17,7 @@ fi
 export PATH=~/.local/bin:"$PATH"
 # See SDK/RTOS version matrix here: https://docs.google.com/spreadsheets/d/1wzGJLRuR6urTgnDFUqKk7pEB8O6vWu6Sxziw_KROxMA/edit#gid=0
 export ZEPHYR_VERSION="0.14.2"
-export ARCH=$(uname -m)
+export HOST_ARCH=$(uname -m)
 
 pushd $FW_TARGETDIR >/dev/null
 
@@ -31,25 +31,29 @@ pushd $FW_TARGETDIR >/dev/null
 
     pip3 install -r zephyrproject/zephyr/scripts/requirements.txt --ignore-installed
 
+    export SDK_VERSION=zephyr-sdk-${ZEPHYR_VERSION}_linux-${HOST_ARCH}.tar.gz
+
     if [ "$PLATFORM" = "host" ]; then
-        if [ "$ARCH" = "aarch64" ]; then
-            export TOOLCHAIN_VERSION=zephyr-sdk-${ZEPHYR_VERSION}-linux-aarch64-setup.run
-        else
-            export TOOLCHAIN_VERSION=zephyr-sdk-${ZEPHYR_VERSION}-x86_64-linux-setup.run
-        fi
+        export TARGET_TOOLCHAIN=${HOST_ARCH}-zephyr-elf
     else
-        if [ "$ARCH" = "aarch64" ]; then
-            export TOOLCHAIN_VERSION=zephyr-toolchain-arm-${ZEPHYR_VERSION}-linux-aarch64-setup.run
-        else
-            export TOOLCHAIN_VERSION=zephyr-toolchain-arm-${ZEPHYR_VERSION}-x86_64-linux-setup.run
-        fi
+        # Support for ARM only
+        export TARGET_TOOLCHAIN=arm-zephyr-eabi
     fi
 
-    wget https://github.com/zephyrproject-rtos/sdk-ng/releases/download/$ZEPHYR_VERSION/$TOOLCHAIN_VERSION
-    chmod +x $TOOLCHAIN_VERSION
-    ./$TOOLCHAIN_VERSION -- -d $(pwd)/zephyr-sdk -y
-
-    rm -rf $TOOLCHAIN_VERSION
+    # Get SDK
+    wget https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v$ZEPHYR_VERSION/$SDK_VERSION
+    wget -O - https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v$ZEPHYR_VERSION/sha256.sum | shasum --check --ignore-missing
+    
+    # Extract sdk
+    tar xvf $SDK_VERSION
+    # Rename the versioned sdk folder to generic
+    mv zephyr-sdk-$ZEPHYR_VERSION zephyr-sdk
+    pushd zephyr-sdk >/dev/null
+    # Setup with requested target toolchain
+    ./setup.sh -h -c -t ${TARGET_TOOLCHAIN}
+    popd > /dev/null
+    # Cleanup, remove the downloaded tar
+    rm -rf $SDK_VERSION
 
     export ZEPHYR_TOOLCHAIN_VARIANT=zephyr
     export ZEPHYR_SDK_INSTALL_DIR=$FW_TARGETDIR/zephyr-sdk
